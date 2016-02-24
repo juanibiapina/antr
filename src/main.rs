@@ -16,6 +16,8 @@ fn main() {
                 _ => println!("Recv.")
             }
         },
-        Err(_) => println!("Error")
+        Err(_) => {
+            panic!("antr: error starting file system watcher");
+        },
     }
 }
