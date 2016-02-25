@@ -10,7 +10,12 @@ fn main() {
 
     match w {
         Ok(mut watcher) => {
-            watcher.watch(".").unwrap();
+            match watcher.watch(".") {
+                Ok(()) => {},
+                Err(_) => {
+                    panic!("antr: unable to watch current directory");
+                },
+            }
 
             while let Ok(event) = rx.recv() {
                 println!("Received event: {:?}", event.op.unwrap());
