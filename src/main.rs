@@ -2,6 +2,7 @@ extern crate notify;
 
 use notify::{RecommendedWatcher, Watcher};
 use std::sync::mpsc::channel;
+use std::process::Command;
 
 fn main() {
     let (tx, rx) = channel();
@@ -18,7 +19,10 @@ fn main() {
         },
     }
 
-    while let Ok(event) = rx.recv() {
-        println!("Received event: {:?}", event.op.unwrap());
+    while let Ok(_) = rx.recv() {
+        Command::new("clear").status().unwrap();
+        let exit_status = Command::new("ls").status().unwrap();
+        println!("");
+        println!("exit status: {}", exit_status);
     }
 }
