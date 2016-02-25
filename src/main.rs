@@ -6,13 +6,18 @@ use std::env;
 
 use notify::{RecommendedWatcher, Watcher};
 
+fn die(message: &str) -> ! {
+    println!("{}", message);
+    std::process::exit(1);
+}
+
 fn main() {
     let mut args = env::args().skip(1);
 
     let command = match args.next() {
         Some(command) => command,
         None => {
-            panic!("antr: no command passed");
+            die("antr: no command passed");
         },
     };
 
@@ -26,13 +31,13 @@ fn main() {
 
     let mut watcher: RecommendedWatcher = match Watcher::new(tx) {
         Ok(watcher) => watcher,
-        Err(_) => panic!("antr: error starting file system watcher"),
+        Err(_) => die("antr: error starting file system watcher"),
     };
 
     match watcher.watch(".") {
         Ok(()) => {},
         Err(_) => {
-            panic!("antr: unable to watch current directory");
+            die("antr: unable to watch current directory");
         },
     }
 
