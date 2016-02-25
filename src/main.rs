@@ -12,12 +12,8 @@ fn main() {
         Ok(mut watcher) => {
             watcher.watch(".").unwrap();
 
-            loop {
-                match rx.recv() {
-                    event => {
-                        println!("Received event: {:?}", event.unwrap().op.unwrap());
-                    }
-                }
+            while let Ok(event) = rx.recv() {
+                println!("Received event: {:?}", event.op.unwrap());
             }
         },
         Err(_) => {
