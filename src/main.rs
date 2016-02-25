@@ -1,28 +1,24 @@
 extern crate notify;
 
-use notify::{RecommendedWatcher, Error, Watcher};
+use notify::{RecommendedWatcher, Watcher};
 use std::sync::mpsc::channel;
 
 fn main() {
     let (tx, rx) = channel();
 
-    let w: Result<RecommendedWatcher, Error> = Watcher::new(tx);
+    let mut watcher: RecommendedWatcher = match Watcher::new(tx) {
+        Ok(watcher) => watcher,
+        Err(_) => panic!("antr: error starting file system watcher"),
+    };
 
-    match w {
-        Ok(mut watcher) => {
-            match watcher.watch(".") {
-                Ok(()) => {},
-                Err(_) => {
-                    panic!("antr: unable to watch current directory");
-                },
-            }
-
-            while let Ok(event) = rx.recv() {
-                println!("Received event: {:?}", event.op.unwrap());
-            }
-        },
+    match watcher.watch(".") {
+        Ok(()) => {},
         Err(_) => {
-            panic!("antr: error starting file system watcher");
+            panic!("antr: unable to watch current directory");
         },
+    }
+
+    while let Ok(event) = rx.recv() {
+        println!("Received event: {:?}", event.op.unwrap());
     }
 }
