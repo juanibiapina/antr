@@ -32,7 +32,7 @@ fn main() {
 
     let mut args = Vec::new();
 
-    while let Some(arg) = argv.next() {
+    for arg in argv {
         args.push(arg)
     }
 
