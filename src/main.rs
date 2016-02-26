@@ -1,11 +1,11 @@
 extern crate notify;
 extern crate git2;
 
-use std::sync::mpsc::channel;
-use std::process::Command;
 use std::env;
-use std::thread;
+use std::process::Command;
+use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
+use std::thread;
 
 use notify::{RecommendedWatcher, Watcher};
 use git2::Repository;
