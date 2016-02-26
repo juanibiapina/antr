@@ -1,4 +1,5 @@
 extern crate notify;
+extern crate git2;
 
 use std::sync::mpsc::channel;
 use std::process::Command;
@@ -7,6 +8,7 @@ use std::thread;
 use std::sync::{Arc, Mutex};
 
 use notify::{RecommendedWatcher, Watcher};
+use git2::Repository;
 
 struct ShellCommand {
     command: String,
@@ -53,9 +55,30 @@ fn main() {
         },
     }
 
+    let repo = Repository::open(".");
+
     let running = Arc::new(Mutex::new(false));
 
-    while let Ok(_) = rx.recv() {
+    while let Ok(event) = rx.recv() {
+        let ignore = match repo {
+            Ok(ref repo) => {
+                match event.path {
+                    Some(path_buf) => {
+                        match repo.status_should_ignore(path_buf.as_path()) {
+                            Ok(value) => value,
+                            Err(_) => false,
+                        }
+                    },
+                    None => false,
+                }
+            },
+            Err(_) => false,
+        };
+
+        if ignore {
+            continue;
+        }
+
         let mut local_running = running.lock().unwrap();
         if ! *local_running {
             *local_running = true;
