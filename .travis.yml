@@ -30,8 +30,20 @@ matrix:
             - gcc-multilib
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu
+      addons:
+        apt:
+          sources:
+            - kubuntu-backports
+          packages:
+            - cmake
     - os: linux
       env: TARGET=x86_64-unknown-linux-musl
+      addons:
+        apt:
+          sources:
+            - kubuntu-backports
+          packages:
+            - cmake
     - os: osx
       env: TARGET=i686-apple-darwin
     - os: osx
