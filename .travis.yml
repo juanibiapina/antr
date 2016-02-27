@@ -29,6 +29,7 @@ matrix:
             - kubuntu-backports
           packages:
             - cmake
+            - zlib1g-dev
     - os: osx
       env: TARGET=x86_64-apple-darwin
 
