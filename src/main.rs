@@ -6,8 +6,9 @@ use std::process::Command;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 
-use notify::{RecommendedWatcher, Watcher};
+use notify::{RecommendedWatcher, Watcher, RecursiveMode, DebouncedEvent};
 use git2::Repository;
 
 struct ShellCommand {
@@ -43,12 +44,12 @@ fn main() {
 
     let (tx, rx) = channel();
 
-    let mut watcher: RecommendedWatcher = match Watcher::new(tx) {
+    let mut watcher: RecommendedWatcher = match Watcher::new(tx, Duration::from_secs(2)) {
         Ok(watcher) => watcher,
         Err(_) => die("antr: error starting file system watcher"),
     };
 
-    match watcher.watch(".") {
+    match watcher.watch(".", RecursiveMode::Recursive) {
         Ok(()) => {},
         Err(_) => {
             die("antr: unable to watch current directory");
@@ -62,14 +63,15 @@ fn main() {
     while let Ok(event) = rx.recv() {
         let ignore = match repo {
             Ok(ref repo) => {
-                match event.path {
-                    Some(path_buf) => {
+                match event {
+                    DebouncedEvent::NoticeWrite(path_buf)|DebouncedEvent::NoticeRemove(path_buf)|DebouncedEvent::Create(path_buf)|DebouncedEvent::Write(path_buf)|DebouncedEvent::Chmod(path_buf)|DebouncedEvent::Remove(path_buf)|DebouncedEvent::Rename(_, path_buf) => {
                         match repo.status_should_ignore(path_buf.as_path()) {
                             Ok(value) => value,
                             Err(_) => false,
                         }
                     },
-                    None => false,
+                    DebouncedEvent::Rescan => false,
+                    DebouncedEvent::Error(_, _) => false,
                 }
             },
             Err(_) => false,
