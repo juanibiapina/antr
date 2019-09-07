@@ -8,5 +8,5 @@ readme = "README.md"
 license = "MIT"
 
 [dependencies]
-notify = "*"
-git2 = "*"
+notify = "^4.0.13"
+git2 = "0.10"
