@@ -8,5 +8,6 @@ readme = "README.md"
 license = "MIT"
 
 [dependencies]
-notify = "^4.0.13"
-git2 = "0.10"
+notify = "*"
+notify-debouncer-mini = "*"
+git2 = "*"

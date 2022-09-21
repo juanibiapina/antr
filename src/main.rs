@@ -1,14 +1,17 @@
 extern crate notify;
+extern crate notify_debouncer_mini;
 extern crate git2;
 
 use std::env;
+use std::path::Path;
 use std::process::Command;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use notify::{RecommendedWatcher, Watcher, RecursiveMode, DebouncedEvent};
+use notify::{RecursiveMode};
+use notify_debouncer_mini::new_debouncer;
 use git2::Repository;
 
 struct ShellCommand {
@@ -44,34 +47,48 @@ fn main() {
 
     let (tx, rx) = channel();
 
-    let mut watcher: RecommendedWatcher = match Watcher::new(tx, Duration::from_secs(2)) {
-        Ok(watcher) => watcher,
-        Err(_) => die("antr: error starting file system watcher"),
+    let mut debouncer = match new_debouncer(Duration::from_secs(1), None, tx) {
+        Ok(debouncer) => debouncer,
+        Err(_) => {
+            die("antr: unable to initialize debouncer");
+        },
     };
 
-    match watcher.watch(".", RecursiveMode::Recursive) {
+    let current_dir = match env::current_dir() {
+        Ok(current_dir) => current_dir,
+        Err(_) => die("could not determine current directory"),
+    };
+
+    match debouncer.watcher().watch(Path::new(&current_dir), RecursiveMode::Recursive) {
         Ok(()) => {},
         Err(_) => {
             die("antr: unable to watch current directory");
         },
-    }
+    };
 
-    let repo = Repository::open(".");
+    let repo = Repository::open(current_dir);
 
     let running = Arc::new(Mutex::new(false));
 
-    while let Ok(event) = rx.recv() {
+    while let Ok(events) = rx.recv() {
         let ignore = match repo {
             Ok(ref repo) => {
-                match event {
-                    DebouncedEvent::NoticeWrite(path_buf)|DebouncedEvent::NoticeRemove(path_buf)|DebouncedEvent::Create(path_buf)|DebouncedEvent::Write(path_buf)|DebouncedEvent::Chmod(path_buf)|DebouncedEvent::Remove(path_buf)|DebouncedEvent::Rename(_, path_buf) => {
-                        match repo.status_should_ignore(path_buf.as_path()) {
-                            Ok(value) => value,
-                            Err(_) => false,
+                match events {
+                    Ok(events) => {
+                        let mut result = false;
+
+                        for event in events.iter() {
+                            if event.path.exists() {
+                                result = result || match repo.status_should_ignore(&event.path) {
+                                    Ok(value) => value,
+                                    Err(_) => false,
+                                };
+                            }
                         }
+
+                        result
                     },
-                    DebouncedEvent::Rescan => false,
-                    DebouncedEvent::Error(_, _) => false,
+                    Err(_) => false,
                 }
             },
             Err(_) => false,
