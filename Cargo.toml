@@ -1,6 +1,6 @@
 [package]
 name = "antr"
-version = "0.4.0"
+version = "1.0.0"
 authors = ["Juan Ibiapina <juanibiapina@gmail.com>"]
 description = "A simple to use file system event watcher that runs arbitrary commands"
 repository = "https://github.com/juanibiapina/antr"
