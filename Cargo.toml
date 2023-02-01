@@ -8,6 +8,8 @@ readme = "README.md"
 license = "MIT"
 
 [dependencies]
+env_logger = "*"
+git2 = "*"
+log = "*"
 notify = "*"
 notify-debouncer-mini = "*"
-git2 = "*"

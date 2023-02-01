@@ -1,7 +1,10 @@
+extern crate env_logger;
+extern crate git2;
+extern crate log;
 extern crate notify;
 extern crate notify_debouncer_mini;
-extern crate git2;
 
+use log::debug;
 use std::env;
 use std::path::Path;
 use std::process::Command;
@@ -25,6 +28,9 @@ fn die(message: &str) -> ! {
 }
 
 fn main() {
+    // init env logger
+    env_logger::init();
+
     let mut argv = env::args().skip(1);
 
     let command = match argv.next() {
@@ -71,30 +77,48 @@ fn main() {
     let running = Arc::new(Mutex::new(false));
 
     while let Ok(events) = rx.recv() {
-        let ignore = match repo {
+        debug!("Processing events...");
+        let should_run = match repo {
             Ok(ref repo) => {
                 match events {
                     Ok(events) => {
                         let mut result = false;
 
                         for event in events.iter() {
-                            if event.path.exists() {
-                                result = result || match repo.status_should_ignore(&event.path) {
-                                    Ok(value) => value,
-                                    Err(_) => false,
-                                };
+                            debug!("event path: {:?}", event.path);
+                            let should_ignore = match repo.status_should_ignore(&event.path) {
+                                Ok(value) => value,
+                                Err(e) => {
+                                    debug!("git ignore error: {:?}", e);
+                                    true
+                                }
+                            };
+
+                            // if one file cannot be ignored, we already know we need to run
+                            if ! should_ignore {
+                                result = true;
+                                continue
                             }
                         }
 
                         result
                     },
-                    Err(_) => false,
+                    Err(e) => {
+                        debug!("watch error: {:?}", e);
+                        true
+                    }
                 }
             },
-            Err(_) => false,
+            Err(ref e) => {
+                debug!("git error: {:?}", e);
+                true
+            }
         };
 
-        if ignore {
+        if should_run {
+            debug!("changes detected");
+        } else {
+            debug!("ignoring changes");
             continue;
         }
 
