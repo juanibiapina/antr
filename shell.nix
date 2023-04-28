@@ -4,7 +4,8 @@ pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
     cargo
     rustc
-    openssl
     pkg-config
+    darwin.apple_sdk.frameworks.Security
+    darwin.apple_sdk.frameworks.CoreServices
   ];
 }
