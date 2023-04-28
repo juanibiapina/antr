@@ -1,6 +1,6 @@
 [package]
 name = "antr"
-version = "1.0.1"
+version = "1.0.2"
 authors = ["Juan Ibiapina <juanibiapina@gmail.com>"]
 description = "A simple to use file system event watcher that runs arbitrary commands"
 repository = "https://github.com/juanibiapina/antr"
@@ -9,7 +9,7 @@ license = "MIT"
 
 [dependencies]
 env_logger = "*"
-git2 = "*"
+git2 = { version = "*", default-features = false }
 log = "*"
 notify = "*"
 notify-debouncer-mini = "*"
