@@ -1,5 +1,7 @@
 # antr
 
+**Deprecated** in favor of https://github.com/watchexec/watchexec
+
 antr is a file system events watcher that runs arbitrary commands.
 
 antr watches the current directory and subdiretories for changes. On the event
