@@ -4,7 +4,7 @@ extern crate log;
 extern crate notify;
 extern crate notify_debouncer_mini;
 
-use log::debug;
+use log::{info, error, debug};
 use std::env;
 use std::path::Path;
 use std::process::Command;
@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use notify::{RecursiveMode};
+use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use git2::Repository;
 
@@ -47,8 +47,8 @@ fn main() {
     }
 
     let shell_command = Arc::new(ShellCommand {
-        command: command,
-        args: args,
+        command,
+        args,
     });
 
     let (tx, rx) = channel();
@@ -65,6 +65,7 @@ fn main() {
         Err(_) => die("could not determine current directory"),
     };
 
+    info!("Watching directory: {:?}", current_dir);
     match debouncer.watcher().watch(Path::new(&current_dir), RecursiveMode::Recursive) {
         Ok(()) => {},
         Err(_) => {
@@ -72,12 +73,14 @@ fn main() {
         },
     };
 
+    info!("Opening git repository...");
     let repo = Repository::open(current_dir);
 
     let running = Arc::new(Mutex::new(false));
 
+    info!("Listening for changes...");
     while let Ok(events) = rx.recv() {
-        debug!("Processing events...");
+        info!("Processing events...");
         let should_run = match repo {
             Ok(ref repo) => {
                 match events {
@@ -89,7 +92,7 @@ fn main() {
                             let should_ignore = match repo.status_should_ignore(&event.path) {
                                 Ok(value) => value,
                                 Err(e) => {
-                                    debug!("git ignore error: {:?}", e);
+                                    error!("git ignore error: {:?}", e);
                                     true
                                 }
                             };
@@ -104,21 +107,21 @@ fn main() {
                         result
                     },
                     Err(e) => {
-                        debug!("watch error: {:?}", e);
+                        error!("watch error: {:?}", e);
                         true
                     }
                 }
             },
             Err(ref e) => {
-                debug!("git error: {:?}", e);
+                error!("git error: {:?}", e);
                 true
             }
         };
 
         if should_run {
-            debug!("changes detected");
+            info!("changes detected");
         } else {
-            debug!("ignoring changes");
+            info!("ignoring changes");
             continue;
         }
 
