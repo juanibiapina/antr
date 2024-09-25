@@ -53,7 +53,7 @@ fn main() {
 
     let (tx, rx) = channel();
 
-    let mut debouncer = match new_debouncer(Duration::from_secs(1), None, tx) {
+    let mut debouncer = match new_debouncer(Duration::from_secs(1), tx) {
         Ok(debouncer) => debouncer,
         Err(_) => {
             die("antr: unable to initialize debouncer");
@@ -68,7 +68,8 @@ fn main() {
     info!("Watching directory: {:?}", current_dir);
     match debouncer.watcher().watch(Path::new(&current_dir), RecursiveMode::Recursive) {
         Ok(()) => {},
-        Err(_) => {
+        Err(e) => {
+            println!("{:?}", e);
             die("antr: unable to watch current directory");
         },
     };
