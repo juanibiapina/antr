@@ -9,11 +9,10 @@ extern crate notify_debouncer_mini;
 
 use clap::Parser;
 use git2::Repository;
-use log::{info, error, debug};
+use log::{info, warn, error, debug};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use std::env;
-use std::path::Path;
 use std::process::Command;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
@@ -67,6 +66,24 @@ fn old_main() -> Result<(), Error> {
         Err(e) => return Err(Error::InvalidCurrentDirectory(std::rc::Rc::new(e))),
     };
 
+    // collect entries in the current directory
+    let entries = match current_dir.read_dir() {
+        Ok(entries) => entries,
+        Err(e) => {
+            die(&format!("antr: unable to read current directory: {:?}", e));
+        },
+    };
+
+    info!("Opening git repository...");
+    let repo = match Repository::open(&current_dir) {
+        Ok(repo) => Some(repo),
+        Err(e) => {
+            warn!("git error: {:?}", e);
+            warn!("proceeding without git repository");
+            None
+        },
+    };
+
     // create a channel to communicate with the debouncer
     let (tx, rx) = channel();
 
@@ -78,17 +95,53 @@ fn old_main() -> Result<(), Error> {
         },
     };
 
-    info!("Watching directory: {:?}", current_dir);
-    match debouncer.watcher().watch(Path::new(&current_dir), RecursiveMode::Recursive) {
-        Ok(()) => {},
-        Err(e) => {
-            println!("{:?}", e);
-            die("antr: unable to watch current directory");
-        },
-    };
+    // setup watchers for entries in the current directory
+    info!("Setting up watchers for entries in the current directory...");
+    for entry in entries {
+        match entry {
+            Ok(entry) => {
+                let path = entry.path();
 
-    info!("Opening git repository...");
-    let repo = Repository::open(current_dir);
+                if let Some(ref repo) = repo {
+                    let should_ignore = match repo.status_should_ignore(&path) {
+                        Ok(value) => value,
+                        Err(e) => {
+                            error!("git ignore error: {:?}", e);
+                            false
+                        }
+                    };
+
+                    if should_ignore {
+                        info!("Ignoring path: {:?}", path);
+                        continue;
+                    }
+                }
+
+                info!("Watching path: {:?}", path);
+                match debouncer.watcher().watch(&path, RecursiveMode::Recursive) {
+                    Ok(()) => {},
+                    Err(e) => {
+                        println!("{:?}", e);
+                        die("antr: unable to watch directory");
+                    },
+                };
+            },
+            Err(e) => {
+                println!("{:?}", e);
+                die("antr: unable to read directory entry");
+            },
+        }
+    }
+
+    info!("Watching root directory: {:?}", current_dir);
+    //match debouncer.watcher().watch(Path::new(&current_dir), RecursiveMode::Recursive) {
+    //    Ok(()) => {},
+    //    Err(e) => {
+    //        println!("{:?}", e);
+    //        die("antr: unable to watch current directory");
+    //    },
+    //};
+
 
     let running = Arc::new(Mutex::new(false));
 
@@ -96,7 +149,7 @@ fn old_main() -> Result<(), Error> {
     while let Ok(events) = rx.recv() {
         info!("Processing events...");
         let should_run = match repo {
-            Ok(ref repo) => {
+            Some(ref repo) => {
                 match events {
                     Ok(events) => {
                         let mut result = false;
@@ -107,7 +160,7 @@ fn old_main() -> Result<(), Error> {
                                 Ok(value) => value,
                                 Err(e) => {
                                     error!("git ignore error: {:?}", e);
-                                    true
+                                    false
                                 }
                             };
 
@@ -126,8 +179,7 @@ fn old_main() -> Result<(), Error> {
                     }
                 }
             },
-            Err(ref e) => {
-                error!("git error: {:?}", e);
+            None => {
                 true
             }
         };
