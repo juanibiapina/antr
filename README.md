@@ -1,6 +1,6 @@
 # antr
 
-antr is a file system events watcher that runs arbitrary commands.
+antr is a simple to use and high performance file watcher.
 
 antr watches the current directory and subdiretories for changes. On the event
 of a change, it clears the screen and runs the passed command.
