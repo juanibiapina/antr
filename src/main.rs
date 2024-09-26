@@ -1,10 +1,15 @@
+extern crate clap;
 extern crate env_logger;
 extern crate git2;
 extern crate log;
 extern crate notify;
 extern crate notify_debouncer_mini;
 
+use clap::Parser;
+use git2::Repository;
 use log::{info, error, debug};
+use notify::RecursiveMode;
+use notify_debouncer_mini::new_debouncer;
 use std::env;
 use std::path::Path;
 use std::process::Command;
@@ -13,12 +18,18 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use notify::RecursiveMode;
-use notify_debouncer_mini::new_debouncer;
-use git2::Repository;
-
 struct ShellCommand {
     command: String,
+    args: Vec<String>,
+}
+
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[arg(help = "Command to run", required = true)]
+    command: String,
+
+    #[arg(help = "Command with args", trailing_var_arg = true, num_args = ..)]
     args: Vec<String>,
 }
 
@@ -31,28 +42,18 @@ fn main() {
     // init env logger
     env_logger::init();
 
-    let mut argv = env::args().skip(1);
-
-    let command = match argv.next() {
-        Some(command) => command,
-        None => {
-            die("antr: no command passed");
-        },
-    };
-
-    let mut args = Vec::new();
-
-    for arg in argv {
-        args.push(arg)
-    }
+    // parse command line arguments
+    let cli = Cli::parse();
 
     let shell_command = Arc::new(ShellCommand {
-        command,
-        args,
+        command: cli.command,
+        args: cli.args,
     });
 
+    // create a channel to communicate with the debouncer
     let (tx, rx) = channel();
 
+    // initialize the debouncer
     let mut debouncer = match new_debouncer(Duration::from_secs(1), tx) {
         Ok(debouncer) => debouncer,
         Err(_) => {
