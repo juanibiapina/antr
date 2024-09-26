@@ -8,6 +8,7 @@ readme = "README.md"
 license = "MIT"
 
 [dependencies]
+clap = { version = "*", features = ["derive"] }
 env_logger = "*"
 git2 = { version = "*", default-features = false }
 log = "*"
