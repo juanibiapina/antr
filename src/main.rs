@@ -1,3 +1,5 @@
+extern crate antr;
+
 extern crate clap;
 extern crate env_logger;
 extern crate git2;
@@ -17,6 +19,8 @@ use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+
+use antr::error::Error;
 
 struct ShellCommand {
     command: String,
@@ -39,6 +43,13 @@ fn die(message: &str) -> ! {
 }
 
 fn main() {
+    match old_main() {
+        Ok(()) => {},
+        Err(e) => handle_error(e),
+    }
+}
+
+fn old_main() -> Result<(), Error> {
     // init env logger
     env_logger::init();
 
@@ -53,7 +64,7 @@ fn main() {
     // determine the current directory
     let current_dir = match env::current_dir() {
         Ok(current_dir) => current_dir,
-        Err(_) => die("could not determine current directory"),
+        Err(e) => return Err(Error::InvalidCurrentDirectory(std::rc::Rc::new(e))),
     };
 
     // create a channel to communicate with the debouncer
@@ -150,4 +161,16 @@ fn main() {
             });
         }
     }
+
+    return Ok(());
+}
+
+fn handle_error(error: Error) -> ! {
+    match error {
+        Error::InvalidCurrentDirectory(e) => {
+            println!("antr: unable to determine current directory: {:?}", e);
+        },
+    }
+
+    std::process::exit(1);
 }
