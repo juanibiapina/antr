@@ -50,6 +50,12 @@ fn main() {
         args: cli.args,
     });
 
+    // determine the current directory
+    let current_dir = match env::current_dir() {
+        Ok(current_dir) => current_dir,
+        Err(_) => die("could not determine current directory"),
+    };
+
     // create a channel to communicate with the debouncer
     let (tx, rx) = channel();
 
@@ -59,11 +65,6 @@ fn main() {
         Err(_) => {
             die("antr: unable to initialize debouncer");
         },
-    };
-
-    let current_dir = match env::current_dir() {
-        Ok(current_dir) => current_dir,
-        Err(_) => die("could not determine current directory"),
     };
 
     info!("Watching directory: {:?}", current_dir);
