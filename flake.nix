@@ -30,6 +30,8 @@ outputs = { self, nixpkgs, devenv, systems, ... } @ inputs:
             modules = [
               {
                 packages = with pkgs; [
+                  darwin.apple_sdk.frameworks.Security
+                  darwin.apple_sdk.frameworks.CoreServices
                 ];
 
                 languages.rust.enable = true;
