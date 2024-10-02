@@ -88,9 +88,7 @@ fn old_main() -> Result<(), Error> {
     // initialize the debouncer
     let mut debouncer = match new_debouncer(Duration::from_secs(1), tx) {
         Ok(debouncer) => debouncer,
-        Err(_) => {
-            die("antr: unable to initialize debouncer");
-        },
+        Err(e) => return Err(Error::DebouncerInitializationError(std::rc::Rc::new(e))),
     };
 
     // setup watchers for entries in the current directory
@@ -222,6 +220,9 @@ fn handle_error(error: Error) -> ! {
         }
         Error::CantReadCurrentDirectory(e) => {
             println!("antr: unable to read current directory: {:?}", e);
+        }
+        Error::DebouncerInitializationError(e) => {
+            println!("antr: unable to initialize debouncer: {:?}", e);
         }
     }
 
