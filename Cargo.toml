@@ -6,6 +6,7 @@ description = "A simple to use and high performance file watcher"
 repository = "https://github.com/juanibiapina/antr"
 readme = "README.md"
 license = "MIT"
+edition = "2021"
 
 [dependencies]
 clap = { version = "*", features = ["derive"] }
