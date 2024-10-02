@@ -69,9 +69,7 @@ fn old_main() -> Result<(), Error> {
     // collect entries in the current directory
     let entries = match current_dir.read_dir() {
         Ok(entries) => entries,
-        Err(e) => {
-            die(&format!("antr: unable to read current directory: {:?}", e));
-        },
+        Err(e) => return Err(Error::CantReadCurrentDirectory(std::rc::Rc::new(e))),
     };
 
     info!("Opening git repository...");
@@ -221,7 +219,10 @@ fn handle_error(error: Error) -> ! {
     match error {
         Error::InvalidCurrentDirectory(e) => {
             println!("antr: unable to determine current directory: {:?}", e);
-        },
+        }
+        Error::CantReadCurrentDirectory(e) => {
+            println!("antr: unable to read current directory: {:?}", e);
+        }
     }
 
     std::process::exit(1);
