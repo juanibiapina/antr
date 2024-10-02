@@ -15,9 +15,14 @@ outputs = { self, nixpkgs, devenv, systems, ... } @ inputs:
     forEachSystem = nixpkgs.lib.genAttrs (import systems);
   in
   {
-    packages = forEachSystem (system: {
-      devenv-up = self.devShells.${system}.default.config.procfileScript;
-    });
+    packages = forEachSystem (system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+      in
+      {
+        devenv-up = self.devShells.${system}.default.config.procfileScript;
+        antr = pkgs.callPackage ./default.nix { inherit pkgs; };
+      });
 
     devShells = forEachSystem
       (system:
