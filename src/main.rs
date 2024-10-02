@@ -36,11 +36,6 @@ struct Cli {
     args: Vec<String>,
 }
 
-fn die(message: &str) -> ! {
-    println!("{}", message);
-    std::process::exit(1);
-}
-
 fn main() {
     match old_main() {
         Ok(()) => {},
@@ -117,15 +112,11 @@ fn old_main() -> Result<(), Error> {
                 match debouncer.watcher().watch(&path, RecursiveMode::Recursive) {
                     Ok(()) => {},
                     Err(e) => {
-                        println!("{:?}", e);
-                        die("antr: unable to watch directory");
+                        return Err(Error::WatcherError(path.to_owned(), std::rc::Rc::new(e)));
                     },
                 };
             },
-            Err(e) => {
-                println!("{:?}", e);
-                die("antr: unable to read directory entry");
-            },
+            Err(e) => return Err(Error::ReadEntryError(std::rc::Rc::new(e))),
         }
     }
 
@@ -223,6 +214,12 @@ fn handle_error(error: Error) -> ! {
         }
         Error::DebouncerInitializationError(e) => {
             println!("antr: unable to initialize debouncer: {:?}", e);
+        }
+        Error::WatcherError(path, e) => {
+            println!("antr: unable to watch path {:?}: {:?}", path, e);
+        }
+        Error::ReadEntryError(e) => {
+            println!("antr: unable to read entry: {:?}", e);
         }
     }
 
