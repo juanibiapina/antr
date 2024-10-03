@@ -62,7 +62,7 @@ dependencies = [
 
 [[package]]
 name = "antr"
-version = "1.0.2"
+version = "2.0.0-beta"
 dependencies = [
  "clap",
  "env_logger",

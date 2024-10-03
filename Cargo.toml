@@ -1,6 +1,6 @@
 [package]
 name = "antr"
-version = "1.0.2"
+version = "2.0.0-beta"
 authors = ["Juan Ibiapina <juanibiapina@gmail.com>"]
 description = "A simple to use and high performance file watcher"
 repository = "https://github.com/juanibiapina/antr"
