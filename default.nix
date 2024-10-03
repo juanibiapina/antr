@@ -10,10 +10,10 @@ rustPlatform.buildRustPackage rec {
     lockFile = ./Cargo.lock;
   };
 
-  buildInputs = [
-    darwin.apple_sdk.frameworks.Security
-    darwin.apple_sdk.frameworks.CoreServices
-  ];
+  buildInputs = (if pkgs.stdenv.isDarwin then [
+      darwin.apple_sdk.frameworks.Security
+      darwin.apple_sdk.frameworks.CoreServices
+  ] else []);
 
   meta = with lib; {
     description = "A simple to use and high performance file watcher.";
