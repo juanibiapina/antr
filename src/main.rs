@@ -32,7 +32,7 @@ struct Cli {
     #[arg(help = "Command to run", required = true)]
     command: String,
 
-    #[arg(help = "Command with args", trailing_var_arg = true, num_args = ..)]
+    #[arg(help = "Command with args", trailing_var_arg = true, allow_hyphen_values = true, num_args = ..)]
     args: Vec<String>,
 }
 
