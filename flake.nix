@@ -35,6 +35,7 @@ outputs = { self, nixpkgs, devenv, systems, ... } @ inputs:
             modules = [
               {
                 packages = with pkgs; [
+                  bats
                 ] ++ (if pkgs.stdenv.isDarwin then [
                   darwin.apple_sdk.frameworks.Security
                   darwin.apple_sdk.frameworks.CoreServices
