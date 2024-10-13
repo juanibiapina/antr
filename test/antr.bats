@@ -1,6 +1,9 @@
 #!/usr/bin/env bats
 
-load test_helper
+setup() {
+  load test_helper
+  common_setup
+}
 
 @test "antr: --help" {
   run antr --help
