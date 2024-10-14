@@ -15,3 +15,7 @@ git2 = { version = "*", default-features = false }
 log = "*"
 notify = "*"
 notify-debouncer-mini = "*"
+
+[dev-dependencies]
+assert_cmd = "*"
+tempfile = "*"
