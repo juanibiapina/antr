@@ -9,7 +9,7 @@ extern crate notify_debouncer_mini;
 
 use clap::Parser;
 use git2::Repository;
-use log::{info, warn, error, debug};
+use log::{warn, error, debug};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use std::env;
@@ -31,6 +31,9 @@ struct ShellCommand {
 struct Cli {
     #[arg(help = "Command to run", required = true)]
     command: String,
+
+    #[arg(long, help = "Exit after running the command once")]
+    runonce: bool,
 
     #[arg(help = "Command with args", trailing_var_arg = true, allow_hyphen_values = true, num_args = ..)]
     args: Vec<String>,
@@ -67,7 +70,7 @@ fn old_main() -> Result<(), Error> {
         Err(e) => return Err(Error::CantReadCurrentDirectory(std::rc::Rc::new(e))),
     };
 
-    info!("Opening git repository...");
+    debug!("Opening git repository...");
     let repo = match Repository::open(&current_dir) {
         Ok(repo) => Some(repo),
         Err(e) => {
@@ -87,7 +90,7 @@ fn old_main() -> Result<(), Error> {
     };
 
     // setup watchers for entries in the current directory
-    info!("Setting up watchers for entries in the current directory...");
+    debug!("Setting up watchers for entries in the current directory...");
     for entry in entries {
         match entry {
             Ok(entry) => {
@@ -103,12 +106,12 @@ fn old_main() -> Result<(), Error> {
                     };
 
                     if should_ignore {
-                        info!("Ignoring path: {:?}", path);
+                        debug!("Ignoring path: {:?}", path);
                         continue;
                     }
                 }
 
-                info!("Watching path: {:?}", path);
+                debug!("Watching path: {:?}", path);
                 match debouncer.watcher().watch(&path, RecursiveMode::Recursive) {
                     Ok(()) => {},
                     Err(e) => {
@@ -120,7 +123,7 @@ fn old_main() -> Result<(), Error> {
         }
     }
 
-    info!("Watching root directory: {:?}", current_dir);
+    debug!("Watching root directory: {:?}", current_dir);
     //match debouncer.watcher().watch(Path::new(&current_dir), RecursiveMode::Recursive) {
     //    Ok(()) => {},
     //    Err(e) => {
@@ -132,9 +135,9 @@ fn old_main() -> Result<(), Error> {
 
     let running = Arc::new(Mutex::new(false));
 
-    info!("Listening for changes...");
+    debug!("Listening for changes...");
     while let Ok(events) = rx.recv() {
-        info!("Processing events...");
+        debug!("Processing events...");
         let should_run = match repo {
             Some(ref repo) => {
                 match events {
@@ -172,9 +175,9 @@ fn old_main() -> Result<(), Error> {
         };
 
         if should_run {
-            info!("changes detected");
+            debug!("changes detected");
         } else {
-            info!("ignoring changes");
+            debug!("ignoring changes");
             continue;
         }
 
@@ -194,8 +197,11 @@ fn old_main() -> Result<(), Error> {
                 println!("");
                 println!("{}", exit_status);
 
-                let mut local_running = thread_running.lock().unwrap();
+                if cli.runonce {
+                    std::process::exit(exit_status.code().unwrap());
+                }
 
+                let mut local_running = thread_running.lock().unwrap();
                 *local_running = false;
             });
         }
