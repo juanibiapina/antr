@@ -4,7 +4,7 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 
 #[test]
-fn runonce() -> Result<(), Box<dyn std::error::Error>> {
+fn file_trigger_in_subdirectory() -> Result<(), Box<dyn std::error::Error>> {
     // create a temp directory
     let tempdir = tempfile::tempdir()?;
 
