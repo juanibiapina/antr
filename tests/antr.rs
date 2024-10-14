@@ -22,7 +22,7 @@ fn runonce() -> Result<(), Box<dyn std::error::Error>> {
     let child = cmd.spawn().expect("failed to execute process");
 
     // Wait for the child process to start
-    std::thread::sleep(Duration::from_secs(2));
+    std::thread::sleep(Duration::from_secs(1));
 
     // create a file
     std::fs::File::create(tempdir.path().join("subdir/file"))?;
