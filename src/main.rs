@@ -81,10 +81,10 @@ fn old_main() -> Result<(), Error> {
     };
 
     // create a channel to communicate with the debouncer
-    let (tx, rx) = channel();
+    let (debouncer_tx, debouncer_rx) = channel();
 
     // initialize the debouncer
-    let mut debouncer = match new_debouncer(Duration::from_secs(1), tx) {
+    let mut debouncer = match new_debouncer(Duration::from_secs(1), debouncer_tx) {
         Ok(debouncer) => debouncer,
         Err(e) => return Err(Error::DebouncerInitializationError(std::rc::Rc::new(e))),
     };
@@ -136,7 +136,7 @@ fn old_main() -> Result<(), Error> {
     let running = Arc::new(Mutex::new(false));
 
     debug!("Listening for changes...");
-    while let Ok(events) = rx.recv() {
+    while let Ok(events) = debouncer_rx.recv() {
         debug!("Processing events...");
         let should_run = match repo {
             Some(ref repo) => {
