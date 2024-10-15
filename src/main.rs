@@ -40,6 +40,9 @@ struct Cli {
 }
 
 fn main() {
+    // init env logger
+    env_logger::init();
+
     match old_main() {
         Ok(()) => {},
         Err(e) => handle_error(e),
@@ -47,9 +50,6 @@ fn main() {
 }
 
 fn old_main() -> Result<(), Error> {
-    // init env logger
-    env_logger::init();
-
     // parse command line arguments
     let cli = Cli::parse();
 
