@@ -79,65 +79,11 @@ fn old_main() -> Result<(), Error> {
         },
     };
 
-    // create a channel to communicate with the debouncer
-    let (debouncer_tx, debouncer_rx) = channel();
-
-    // initialize the debouncer
-    let mut debouncer = match new_debouncer(Duration::from_secs(1), debouncer_tx) {
-        Ok(debouncer) => debouncer,
-        Err(e) => return Err(Error::DebouncerInitializationError(std::rc::Rc::new(e))),
-    };
-
-    // collect entries in the current directory
-    let entries = match current_dir.read_dir() {
-        Ok(entries) => entries,
-        Err(e) => return Err(Error::CantReadCurrentDirectory(std::rc::Rc::new(e))),
-    };
-
-    // setup watchers for entries in the current directory
-    debug!("Setting up watchers for entries in the current directory...");
-    for entry in entries {
-        match entry {
-            Ok(entry) => {
-                let path = entry.path();
-
-                if let Some(ref repo) = repo {
-                    let should_ignore = match repo.status_should_ignore(&path) {
-                        Ok(value) => value,
-                        Err(e) => {
-                            error!("git ignore error: {:?}", e);
-                            false
-                        }
-                    };
-
-                    if should_ignore {
-                        debug!("Ignoring path: {:?}", path);
-                        continue;
-                    }
-                }
-
-                debug!("Watching path: {:?}", path);
-                match debouncer.watcher().watch(&path, RecursiveMode::Recursive) {
-                    Ok(()) => {},
-                    Err(e) => {
-                        return Err(Error::WatcherError(path.to_owned(), std::rc::Rc::new(e)));
-                    },
-                };
-            },
-            Err(e) => return Err(Error::ReadEntryError(std::rc::Rc::new(e))),
-        }
-    }
-
     // Main channel for receiving all events
     let (main_tx, main_rx) = channel();
 
-    // Spawn a thread to forward triggers to the main channel
-    let main_tx_clone = main_tx.clone();
-    thread::spawn(move || {
-        while let Ok(events) = debouncer_rx.recv() {
-            main_tx_clone.send(Event::Trigger(events)).expect("main_tx send failed");
-        }
-    });
+    // Initialize watcher
+    let _debouncer = initialize_watcher(&current_dir, repo.as_ref(), main_tx.clone())?;
 
     let running = Arc::new(Mutex::new(false));
 
@@ -217,7 +163,72 @@ fn old_main() -> Result<(), Error> {
         }
     }
 
-    return Ok(());
+    Ok(())
+}
+
+fn initialize_watcher(
+    current_dir: &std::path::Path,
+    repo: Option<&Repository>,
+    main_tx: std::sync::mpsc::Sender<Event>,
+) -> Result<notify_debouncer_mini::Debouncer<notify::RecommendedWatcher>, Error> {
+    // collect entries in the current directory
+    let entries = match current_dir.read_dir() {
+        Ok(entries) => entries,
+        Err(e) => return Err(Error::CantReadCurrentDirectory(std::rc::Rc::new(e))),
+    };
+
+    // create a channel to communicate with the debouncer
+    let (debouncer_tx, debouncer_rx) = channel();
+
+    // initialize the debouncer
+    let mut debouncer = match new_debouncer(Duration::from_secs(1), debouncer_tx) {
+        Ok(debouncer) => debouncer,
+        Err(e) => return Err(Error::DebouncerInitializationError(std::rc::Rc::new(e))),
+    };
+
+    // setup watchers for entries in the current directory
+    debug!("Setting up watchers for entries in the current directory...");
+    for entry in entries {
+        match entry {
+            Ok(entry) => {
+                let path = entry.path();
+
+                if let Some(repo) = repo {
+                    let should_ignore = match repo.status_should_ignore(&path) {
+                        Ok(value) => value,
+                        Err(e) => {
+                            error!("git ignore error: {:?}", e);
+                            false
+                        }
+                    };
+
+                    if should_ignore {
+                        debug!("Ignoring path: {:?}", path);
+                        continue;
+                    }
+                }
+
+                debug!("Watching path: {:?}", path);
+                match debouncer.watcher().watch(&path, RecursiveMode::Recursive) {
+                    Ok(()) => {},
+                    Err(e) => {
+                        return Err(Error::WatcherError(path.to_owned(), std::rc::Rc::new(e)));
+                    },
+                };
+            },
+            Err(e) => return Err(Error::ReadEntryError(std::rc::Rc::new(e))),
+        }
+    }
+
+    // Spawn a thread to forward triggers to the main channel
+    let main_tx_clone = main_tx.clone();
+    thread::spawn(move || {
+        while let Ok(events) = debouncer_rx.recv() {
+            main_tx_clone.send(Event::Trigger(events)).expect("main_tx send failed");
+        }
+    });
+
+    Ok(debouncer)
 }
 
 fn handle_error(error: Error) -> ! {
