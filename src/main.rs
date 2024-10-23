@@ -11,6 +11,7 @@ use clap::Parser;
 use git2::Repository;
 use log::{warn, error, debug};
 use notify::RecursiveMode;
+use notify_debouncer_mini::DebouncedEvent;
 use notify_debouncer_mini::new_debouncer;
 use std::env;
 use std::process::Command;
@@ -24,6 +25,10 @@ use antr::error::Error;
 struct ShellCommand {
     command: String,
     args: Vec<String>,
+}
+
+enum Event {
+    Trigger(Result<Vec<DebouncedEvent>, notify::Error>),
 }
 
 #[derive(Parser)]
@@ -123,87 +128,92 @@ fn old_main() -> Result<(), Error> {
         }
     }
 
-    debug!("Watching root directory: {:?}", current_dir);
-    //match debouncer.watcher().watch(Path::new(&current_dir), RecursiveMode::Recursive) {
-    //    Ok(()) => {},
-    //    Err(e) => {
-    //        println!("{:?}", e);
-    //        die("antr: unable to watch current directory");
-    //    },
-    //};
+    // Main channel for receiving all events
+    let (main_tx, main_rx) = channel();
 
+    // Spawn a thread to forward triggers to the main channel
+    let main_tx_clone = main_tx.clone();
+    thread::spawn(move || {
+        while let Ok(events) = debouncer_rx.recv() {
+            main_tx_clone.send(Event::Trigger(events)).expect("main_tx send failed");
+        }
+    });
 
     let running = Arc::new(Mutex::new(false));
 
     debug!("Listening for changes...");
-    while let Ok(events) = debouncer_rx.recv() {
-        debug!("Processing events...");
-        let should_run = match repo {
-            Some(ref repo) => {
-                match events {
-                    Ok(events) => {
-                        let mut result = false;
+    while let Ok(event) = main_rx.recv() {
+        match event {
+            Event::Trigger(events) => {
+                debug!("Processing events from Event::Trigger...");
+                let should_run = match repo {
+                    Some(ref repo) => {
+                        match events {
+                            Ok(events) => {
+                                let mut result = false;
 
-                        for event in events.iter() {
-                            debug!("event path: {:?}", event.path);
-                            let should_ignore = match repo.status_should_ignore(&event.path) {
-                                Ok(value) => value,
-                                Err(e) => {
-                                    error!("git ignore error: {:?}", e);
-                                    false
+                                for event in events.iter() {
+                                    debug!("event path: {:?}", event.path);
+                                    let should_ignore = match repo.status_should_ignore(&event.path) {
+                                        Ok(value) => value,
+                                        Err(e) => {
+                                            error!("git ignore error: {:?}", e);
+                                            false
+                                        }
+                                    };
+
+                                    // if one file cannot be ignored, we already know we need to run
+                                    if ! should_ignore {
+                                        result = true;
+                                        continue
+                                    }
                                 }
-                            };
 
-                            // if one file cannot be ignored, we already know we need to run
-                            if ! should_ignore {
-                                result = true;
-                                continue
+                                result
+                            },
+                            Err(e) => {
+                                error!("watch error: {:?}", e);
+                                true
                             }
                         }
-
-                        result
                     },
-                    Err(e) => {
-                        error!("watch error: {:?}", e);
+                    None => {
                         true
                     }
+                };
+
+                if should_run {
+                    debug!("changes detected");
+                } else {
+                    debug!("ignoring changes");
+                    continue;
                 }
-            },
-            None => {
-                true
+
+                let mut local_running = running.lock().unwrap();
+                if ! *local_running {
+                    *local_running = true;
+                    let thread_command = shell_command.clone();
+                    let thread_running = running.clone();
+
+                    thread::spawn(move|| {
+                        Command::new("clear").status().unwrap();
+                        let mut command = Command::new(&thread_command.command);
+
+                        command.args(&thread_command.args);
+
+                        let exit_status = command.status().unwrap();
+                        println!("");
+                        println!("{}", exit_status);
+
+                        if cli.runonce {
+                            std::process::exit(exit_status.code().unwrap());
+                        }
+
+                        let mut local_running = thread_running.lock().unwrap();
+                        *local_running = false;
+                    });
+                }
             }
-        };
-
-        if should_run {
-            debug!("changes detected");
-        } else {
-            debug!("ignoring changes");
-            continue;
-        }
-
-        let mut local_running = running.lock().unwrap();
-        if ! *local_running {
-            *local_running = true;
-            let thread_command = shell_command.clone();
-            let thread_running = running.clone();
-
-            thread::spawn(move|| {
-                Command::new("clear").status().unwrap();
-                let mut command = Command::new(&thread_command.command);
-
-                command.args(&thread_command.args);
-
-                let exit_status = command.status().unwrap();
-                println!("");
-                println!("{}", exit_status);
-
-                if cli.runonce {
-                    std::process::exit(exit_status.code().unwrap());
-                }
-
-                let mut local_running = thread_running.lock().unwrap();
-                *local_running = false;
-            });
         }
     }
 
