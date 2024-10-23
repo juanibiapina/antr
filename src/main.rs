@@ -29,6 +29,7 @@ struct ShellCommand {
 
 enum Event {
     Trigger(Result<Vec<DebouncedEvent>, notify::Error>),
+    Manual
 }
 
 #[derive(Parser)]
@@ -84,12 +85,18 @@ fn old_main() -> Result<(), Error> {
 
     // Initialize watcher
     let _debouncer = initialize_watcher(&current_dir, repo.as_ref(), main_tx.clone())?;
+    let _manual_thread = initialize_manual(main_tx.clone());
 
     let running = Arc::new(Mutex::new(false));
 
     debug!("Listening for changes...");
     while let Ok(event) = main_rx.recv() {
-        match event {
+        let should_run = match event {
+            Event::Manual => {
+                debug!("Manual event received");
+                true
+            }
+
             Event::Trigger(events) => {
                 debug!("Processing events from Event::Trigger...");
                 let should_run = match repo {
@@ -132,33 +139,41 @@ fn old_main() -> Result<(), Error> {
                     debug!("changes detected");
                 } else {
                     debug!("ignoring changes");
-                    continue;
                 }
 
-                let mut local_running = running.lock().unwrap();
-                if ! *local_running {
-                    *local_running = true;
-                    let thread_command = shell_command.clone();
-                    let thread_running = running.clone();
+                should_run
+            }
+        };
 
-                    thread::spawn(move|| {
-                        Command::new("clear").status().unwrap();
-                        let mut command = Command::new(&thread_command.command);
+        debug!("Attempting to run command...");
+        if should_run {
+            let mut local_running = running.lock().unwrap();
 
-                        command.args(&thread_command.args);
+            if ! *local_running {
+                debug!("Running command...");
+                *local_running = true;
+                let thread_command = shell_command.clone();
+                let thread_running = running.clone();
 
-                        let exit_status = command.status().unwrap();
-                        println!("");
-                        println!("{}", exit_status);
+                thread::spawn(move|| {
+                    Command::new("clear").status().unwrap();
+                    let mut command = Command::new(&thread_command.command);
 
-                        if cli.runonce {
-                            std::process::exit(exit_status.code().unwrap());
-                        }
+                    command.args(&thread_command.args);
 
-                        let mut local_running = thread_running.lock().unwrap();
-                        *local_running = false;
-                    });
-                }
+                    let exit_status = command.status().unwrap();
+                    println!("");
+                    println!("{}", exit_status);
+
+                    if cli.runonce {
+                        std::process::exit(exit_status.code().unwrap());
+                    }
+
+                    let mut local_running = thread_running.lock().unwrap();
+                    *local_running = false;
+                });
+            } else {
+                debug!("Command already running, skipping run.");
             }
         }
     }
@@ -229,6 +244,18 @@ fn initialize_watcher(
     });
 
     Ok(debouncer)
+}
+
+fn initialize_manual(main_tx: std::sync::mpsc::Sender<Event>) -> std::thread::JoinHandle<()> {
+    thread::spawn(move || {
+        loop {
+            let mut input = String::new();
+            debug!("Waiting for manual event...");
+            std::io::stdin().read_line(&mut input).expect("Failed to read line");
+            debug!("Manual event produced");
+            main_tx.send(Event::Manual).expect("Failed to send Event::Manual");
+        }
+    })
 }
 
 fn handle_error(error: Error) -> ! {
