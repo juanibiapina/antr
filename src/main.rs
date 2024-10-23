@@ -69,12 +69,6 @@ fn old_main() -> Result<(), Error> {
         Err(e) => return Err(Error::InvalidCurrentDirectory(std::rc::Rc::new(e))),
     };
 
-    // collect entries in the current directory
-    let entries = match current_dir.read_dir() {
-        Ok(entries) => entries,
-        Err(e) => return Err(Error::CantReadCurrentDirectory(std::rc::Rc::new(e))),
-    };
-
     debug!("Opening git repository...");
     let repo = match Repository::open(&current_dir) {
         Ok(repo) => Some(repo),
@@ -92,6 +86,12 @@ fn old_main() -> Result<(), Error> {
     let mut debouncer = match new_debouncer(Duration::from_secs(1), debouncer_tx) {
         Ok(debouncer) => debouncer,
         Err(e) => return Err(Error::DebouncerInitializationError(std::rc::Rc::new(e))),
+    };
+
+    // collect entries in the current directory
+    let entries = match current_dir.read_dir() {
+        Ok(entries) => entries,
+        Err(e) => return Err(Error::CantReadCurrentDirectory(std::rc::Rc::new(e))),
     };
 
     // setup watchers for entries in the current directory
