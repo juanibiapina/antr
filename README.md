@@ -29,3 +29,5 @@ To run a single javascript file:
 ~~~sh
 $ antr node file.js
 ~~~
+
+Press Enter to trigger a manual run.
