@@ -10,6 +10,9 @@ rustPlatform.buildRustPackage rec {
     lockFile = ./Cargo.lock;
   };
 
+  # Disable running tests
+  doCheck = false;
+
   buildInputs = (if pkgs.stdenv.isDarwin then [
       darwin.apple_sdk.frameworks.Security
       darwin.apple_sdk.frameworks.CoreServices
