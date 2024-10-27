@@ -10,7 +10,7 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Create Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -22,7 +22,7 @@ jobs:
     runs-on: macos-latest
     needs: create_release
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install rust stable
       uses: actions-rs/toolchain@v1
       with:
