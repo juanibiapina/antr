@@ -29,6 +29,7 @@ struct ShellCommand {
 
 enum Event {
     Trigger(Result<Vec<DebouncedEvent>, notify::Error>),
+    RootTrigger,
     Manual
 }
 
@@ -84,7 +85,8 @@ fn old_main() -> Result<(), Error> {
     let (main_tx, main_rx) = channel();
 
     // Initialize watcher
-    let _debouncer = initialize_watcher(&current_dir, repo.as_ref(), main_tx.clone())?;
+    let debouncer = Arc::new(Mutex::new(Some(initialize_watcher(&current_dir, repo.as_ref(), main_tx.clone())?)));
+    let _root_debouncer = initialize_root_watcher(&current_dir, main_tx.clone())?;
     let _manual_thread = initialize_manual(main_tx.clone());
 
     let running = Arc::new(Mutex::new(false));
@@ -92,6 +94,17 @@ fn old_main() -> Result<(), Error> {
     debug!("Listening for changes...");
     while let Ok(event) = main_rx.recv() {
         let should_run = match event {
+            Event::RootTrigger => {
+                debug!("Root trigger event received");
+                debug!("Restarting watcher...");
+
+                if let Err(e) = restart_debouncer(&debouncer, &current_dir, repo.as_ref(), main_tx.clone()) {
+                    return Err(e);
+                }
+
+                true
+            }
+
             Event::Manual => {
                 debug!("Manual event received");
                 true
@@ -246,6 +259,38 @@ fn initialize_watcher(
     Ok(debouncer)
 }
 
+fn initialize_root_watcher(
+    current_dir: &std::path::Path,
+    main_tx: std::sync::mpsc::Sender<Event>,
+) -> Result<notify_debouncer_mini::Debouncer<notify::RecommendedWatcher>, Error> {
+    // create a channel to communicate with the debouncer
+    let (debouncer_tx, debouncer_rx) = channel();
+
+    // initialize the debouncer
+    let mut debouncer = match new_debouncer(Duration::from_secs(1), debouncer_tx) {
+        Ok(debouncer) => debouncer,
+        Err(e) => return Err(Error::DebouncerInitializationError(std::rc::Rc::new(e))),
+    };
+
+    // watch the root directory
+    debug!("Watching root directory: {:?}", current_dir);
+    match debouncer.watcher().watch(&current_dir, RecursiveMode::NonRecursive) {
+        Ok(()) => {},
+        Err(e) => {
+            return Err(Error::WatcherError(current_dir.to_owned(), std::rc::Rc::new(e)));
+        },
+    };
+
+    // Spawn a thread to forward triggers to the main channel
+    let main_tx_clone = main_tx.clone();
+    thread::spawn(move || {
+        while let Ok(_events) = debouncer_rx.recv() {
+            main_tx_clone.send(Event::RootTrigger).expect("main_tx send failed");
+        }
+    });
+
+    Ok(debouncer)
+}
 fn initialize_manual(main_tx: std::sync::mpsc::Sender<Event>) -> std::thread::JoinHandle<()> {
     thread::spawn(move || {
         loop {
@@ -256,6 +301,25 @@ fn initialize_manual(main_tx: std::sync::mpsc::Sender<Event>) -> std::thread::Jo
             main_tx.send(Event::Manual).expect("Failed to send Event::Manual");
         }
     })
+}
+
+fn restart_debouncer(
+    debouncer: &Arc<Mutex<Option<notify_debouncer_mini::Debouncer<notify::RecommendedWatcher>>>>,
+    current_dir: &std::path::Path,
+    repo: Option<&Repository>,
+    main_tx: std::sync::mpsc::Sender<Event>,
+) -> Result<(), Error> {
+    let mut debouncer_lock = debouncer.lock().unwrap();
+    // Stop the current debouncer if it exists
+    if let Some(old_debouncer) = debouncer_lock.take() {
+        drop(old_debouncer); // Dropping will stop the old debouncer
+    }
+
+    // Create a new debouncer and replace the old one
+    let new_debouncer = initialize_watcher(current_dir, repo, main_tx)?;
+    *debouncer_lock = Some(new_debouncer);
+
+    Ok(())
 }
 
 fn handle_error(error: Error) -> ! {
