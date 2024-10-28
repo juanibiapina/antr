@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.0
+
+- Rewrite with performance improvements
+
 ## 1.0.2
 
 - Package only Mac M1 binary
