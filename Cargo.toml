@@ -3,6 +3,7 @@ name = "antr"
 version = "2.0.0"
 authors = ["Juan Ibiapina <juanibiapina@gmail.com>"]
 description = "A simple to use and high performance file watcher"
+homepage = "https://github.com/juanibiapina/antr"
 repository = "https://github.com/juanibiapina/antr"
 readme = "README.md"
 license = "MIT"
