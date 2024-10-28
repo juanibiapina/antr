@@ -1,15 +1,21 @@
 [package]
 name = "antr"
-version = "1.0.2"
+version = "2.0.0"
 authors = ["Juan Ibiapina <juanibiapina@gmail.com>"]
-description = "A simple to use file system event watcher that runs arbitrary commands"
+description = "A simple to use and high performance file watcher"
 repository = "https://github.com/juanibiapina/antr"
 readme = "README.md"
 license = "MIT"
+edition = "2021"
 
 [dependencies]
+clap = { version = "*", features = ["derive"] }
 env_logger = "*"
 git2 = { version = "*", default-features = false }
 log = "*"
 notify = "*"
 notify-debouncer-mini = "*"
+
+[dev-dependencies]
+assert_cmd = "*"
+tempfile = "*"

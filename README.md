@@ -1,8 +1,6 @@
 # antr
 
-**Deprecated** in favor of https://github.com/watchexec/watchexec
-
-antr is a file system events watcher that runs arbitrary commands.
+antr is a simple to use and high performance file watcher.
 
 antr watches the current directory and subdiretories for changes. On the event
 of a change, it clears the screen and runs the passed command.
@@ -10,15 +8,15 @@ of a change, it clears the screen and runs the passed command.
 If the current directory is a git repository, antr will ignore changes to
 git ignored files.
 
-antr is inspired mainly be [entr](http://entrproject.org/), with a few
-differences:
+## Features
 
-- Easier usage
-- Only works with the current directory
-- Easier to watch directories for new files
-- Integration with git ignore
+- Fast and responsive
+- Simple usage, no configuration needed
+- Respects git ignore
+- Resource efficient
+- Force a run by pressing Enter
 
-# Usage
+## Usage
 
 To run `make` every time there is a file change:
 
@@ -31,3 +29,14 @@ To run a single javascript file:
 ~~~sh
 $ antr node file.js
 ~~~
+
+A run can be forced by pressing Enter.
+
+## Performance
+
+A common issue with recursively watching a directory for changes is the need to
+register watchers for every file, including those ignored by git. `antr`
+addresses this by checking gitignore rules before setting up watchers,
+resulting in improved speed and resource efficiency when working in git
+repositories with many ignored files (e.g., node_modules, .direnv, target,
+etc).
